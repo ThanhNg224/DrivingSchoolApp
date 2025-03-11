@@ -84,8 +84,10 @@ class VideoScreenState extends State<VideoScreen> {
         Future.delayed(const Duration(milliseconds: 200), () {
           if (_warningDialogActive && _isFaceDetected) {
             try {
-              Navigator.of(context, rootNavigator: true).pop();
-              debugPrint("Warning dialog dismissed automatically after delay");
+              if (mounted) {
+                Navigator.of(context, rootNavigator: true).pop();
+                debugPrint("Warning dialog dismissed automatically after delay");
+              }
             } catch (e) {
               debugPrint("Error dismissing dialog: $e");
             }

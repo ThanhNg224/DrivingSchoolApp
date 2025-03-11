@@ -18,13 +18,15 @@ class LoginScreenState extends State<LoginScreen> {
   
 
   // Hard-coded credentials
-  final String validUsername = 'admin';
-  final String validPassword = '1234';
+  final String validUsername1 = 'admin';
+  final String validPassword1 = '1234';
+  final String validUsername2 = '0';
+  final String validPassword2 = '0';
 
   void _login() {
     if (_formKey.currentState!.validate()) {
-      if (_usernameController.text == validUsername &&
-          _passwordController.text == validPassword) {
+      if ((_usernameController.text == validUsername1 && _passwordController.text == validPassword1) ||
+          (_usernameController.text == validUsername2 && _passwordController.text == validPassword2)) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const VideoScreen()),

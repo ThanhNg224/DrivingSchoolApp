@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'pages/login_screen.dart';
-import 'pages/video_screen.dart';
+
 void main() {
   runApp(const DrivingSchoolApp());
 }

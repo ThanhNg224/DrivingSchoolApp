@@ -38,7 +38,9 @@ dependencies:
   google_mlkit_face_detection: ^0.12.0  
   http: ^0.13.3
   logger: ^1.0.0
-
+  path_provider: ^2.1.5
+  permission_handler: ^11.4.0
+  path: ^1.9.1
 dev_dependencies:
   flutter_launcher_icons: ^0.14.3
   flutter_test:

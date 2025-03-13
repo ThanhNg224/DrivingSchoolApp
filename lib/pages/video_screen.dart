@@ -1,8 +1,14 @@
 // lib/pages/video_screen.dart
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+
+import 'learner_recorder.dart';
 import 'face_scanner.dart';
+import '../services/permission_service.dart';
+import '../services/session_manager.dart';
+
 
 class VideoScreen extends StatefulWidget {
   const VideoScreen({super.key});
@@ -15,33 +21,78 @@ class VideoScreenState extends State<VideoScreen> {
   late VideoPlayerController _controller;
   Timer? _timer;
   Duration _remaining = Duration.zero;
-  bool _isFaceDetected = true; // Current face detection state
-  bool _warningDialogActive = false; // Indicates if the warning dialog is showing
+  bool _isFaceDetected = true;
+  bool _warningDialogActive = false;
+  late Directory sessionFolder;
+
+  // Global key to access LearnerRecorder's state.
+  final GlobalKey<LearnerRecorderState> _learnerRecorderKey = GlobalKey<LearnerRecorderState>();
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.asset('assets/videos/siu.mp4')
-      ..initialize().then((_) {
-        setState(() {
-          _remaining = _controller.value.duration;
-        });
-        _controller.play();
-        _startTimer();
-      });
-
-    // Update remaining time as video plays.
-    _controller.addListener(() {
-      if (_controller.value.isInitialized) {
-        setState(() {
-          _remaining = _controller.value.duration - _controller.value.position;
-          if (_remaining.isNegative) _remaining = Duration.zero;
-        });
-      }
-    });
+    _askForPermissionsThenInit();
   }
 
-  // Starts a timer to update remaining time and detect video completion.
+  Future<void> _askForPermissionsThenInit() async {
+    // 1) Request the permissions
+    bool granted = await requestPermissions();
+    if (!mounted) return;
+
+    if (!granted) {
+      // Show an alert or navigate back if permissions are critical
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text("Permissions Required"),
+          content: const Text("Camera and microphone permissions are needed."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("OK"),
+            )
+          ],
+        ),
+      );
+      return;
+    }
+
+    // If permissions are granted, initialize the session and video.
+    _initializeSessionAndVideo();
+  
+  }
+  
+  Future<void> _initializeSessionAndVideo() async {
+    try {
+      // Create a unique session folder (from Step 1).
+      sessionFolder = await createSessionFolder();
+      debugPrint("Session folder created: ${sessionFolder.path}");
+      
+      // Initialize the lesson video player (using an asset for demonstration).
+      _controller = VideoPlayerController.asset('assets/videos/siu.mp4')
+        ..initialize().then((_) {
+          setState(() {
+            _remaining = _controller.value.duration;
+          });
+          _controller.play();
+          _startTimer();
+        });
+      
+      // Update remaining time as the video plays.
+      _controller.addListener(() {
+        if (_controller.value.isInitialized) {
+          setState(() {
+            _remaining = _controller.value.duration - _controller.value.position;
+            if (_remaining.isNegative) _remaining = Duration.zero;
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint("Error in initialization: $e");
+    }
+  }
+
+  // Timer that updates the remaining time and shows a completion dialog when the video ends.
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_controller.value.isPlaying &&
@@ -52,20 +103,25 @@ class VideoScreenState extends State<VideoScreen> {
       } else if (_controller.value.position >= _controller.value.duration) {
         _timer?.cancel();
         _showCompletionDialog();
+        _learnerRecorderKey.currentState?.endSession();
       }
     });
   }
 
-  // Handle updates from the FaceScanner widget.
+  // Combined face detection handler that updates both the video playback and the learner recorder.
   void _handleFaceDetection(bool isDetected) {
-    // If video is over, ignore any detection updates.
+    // If video is over, ignore further face detection.
     if (_controller.value.position >= _controller.value.duration) return;
     
     debugPrint("Face detection update: $isDetected");
     setState(() {
       _isFaceDetected = isDetected;
     });
-
+    
+    // Forward face detection status to the LearnerRecorder.
+    _learnerRecorderKey.currentState?.updateFaceDetectionStatus(isDetected);
+    
+    // Manage video playback based on face detection.
     if (!_isFaceDetected) {
       if (_controller.value.isPlaying) {
         _controller.pause();
@@ -80,13 +136,11 @@ class VideoScreenState extends State<VideoScreen> {
         debugPrint("Video resumed as face is detected");
       }
       if (_warningDialogActive) {
-        // Delay a little to ensure state update before dismissing dialog.
         Future.delayed(const Duration(milliseconds: 200), () {
           if (_warningDialogActive && _isFaceDetected) {
             try {
               if (mounted) {
                 Navigator.of(context, rootNavigator: true).pop();
-                debugPrint("Warning dialog dismissed automatically after delay");
               }
             } catch (e) {
               debugPrint("Error dismissing dialog: $e");
@@ -98,12 +152,12 @@ class VideoScreenState extends State<VideoScreen> {
     }
   }
 
-  // Display warning dialog when no face is detected.
+  // Displays a warning dialog when no face is detected.
   void _showWarningDialog() {
     _warningDialogActive = true;
     showDialog(
       context: context,
-      barrierDismissible: false, // Must tap OK.
+      barrierDismissible: false, // User must tap OK.
       builder: (context) => AlertDialog(
         title: const Text("Face Not Detected"),
         content: const Text("Please ensure your face is visible to continue watching the video."),
@@ -113,7 +167,6 @@ class VideoScreenState extends State<VideoScreen> {
               // Dismiss dialog unconditionally.
               Navigator.of(context, rootNavigator: true).pop();
               _warningDialogActive = false;
-              // Re-check detection state after a short delay.
               Future.delayed(const Duration(milliseconds: 200), () {
                 if (!_isFaceDetected) {
                   _showWarningDialog();
@@ -135,32 +188,35 @@ class VideoScreenState extends State<VideoScreen> {
     });
   }
 
-  // Display a dialog when the video completes.
+  // Displays a completion dialog when the video finishes.
   void _showCompletionDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false, // Prevent skipping.
-      builder: (context) => AlertDialog(
-        title: const Text("Lesson Completed"),
-        content: const Text("You have finished watching the lesson video."),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Here: Navigate to the next screen.
-            },
-            child: const Text("Continue"),
-          ),
-        ],
-      ),
-    );
-  }
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      title: const Text("Lesson Completed"),
+      content: const Text("You have finished watching the lesson video."),
+      actions: [
+        TextButton(
+          onPressed: () {
+            // Stop the current recording chunk
+            _learnerRecorderKey.currentState?.stopCurrentChunk();
 
-  // Helper to format Duration as mm:ss.
+            Navigator.pop(context);
+            // TODO: Navigate to next screen or do other steps
+          },
+          child: const Text("Continue"),
+        ),
+      ],
+    ),
+  );
+}
+
+
+  // Helper to format a Duration as mm:ss.
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
-    return '${twoDigits(duration.inMinutes.remainder(60))}:'
-           '${twoDigits(duration.inSeconds.remainder(60))}';
+    return '${twoDigits(duration.inMinutes.remainder(60))}:${twoDigits(duration.inSeconds.remainder(60))}';
   }
 
   @override
@@ -178,7 +234,7 @@ class VideoScreenState extends State<VideoScreen> {
       final positionSeconds = _controller.value.position.inSeconds;
       progressValue = positionSeconds / durationSeconds;
     }
-
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Lesson Video'),
@@ -240,11 +296,11 @@ class VideoScreenState extends State<VideoScreen> {
                             ),
                           ),
                         ),
-                        // Instruction text at the bottom.
+                        // Instruction text.
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                          color: Colors.black.withAlpha((0.5 * 255).toInt()),
+                          color: Colors.black.withAlpha(200),
                           child: const Text(
                             "You must watch the full video before continuing.",
                             style: TextStyle(
@@ -256,7 +312,15 @@ class VideoScreenState extends State<VideoScreen> {
                         ),
                       ],
                     ),
-                    // Hidden FaceScanner widget running in the background.
+                    // LearnerRecorder (hidden) for recording learner’s face.
+                    LearnerRecorder(
+                      key: _learnerRecorderKey,
+                      sessionFolder: sessionFolder,
+                      onFaceStatusChanged: (detected) {
+                        debugPrint("LearnerRecorder received face status: $detected");
+                      },
+                    ),
+                    // FaceScanner widget for real-time face detection.
                     FaceScanner(onFaceDetected: _handleFaceDetection),
                     // Visual indicator for face detection status.
                     Positioned(

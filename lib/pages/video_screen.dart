@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
-import 'learner_recorder.dart';
-import 'face_scanner.dart';
+import '../services/learner_recorder.dart';
+import '../services/face_scanner.dart';
 import '../services/permission_service.dart';
 import '../services/session_manager.dart';
 
@@ -203,7 +203,7 @@ class VideoScreenState extends State<VideoScreen> {
             _learnerRecorderKey.currentState?.stopCurrentChunk();
 
             Navigator.pop(context);
-            // TODO: Navigate to next screen or do other steps
+            //Navigate to next screen or do other steps
           },
           child: const Text("Continue"),
         ),

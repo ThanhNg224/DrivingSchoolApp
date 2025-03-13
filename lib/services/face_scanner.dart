@@ -2,7 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'dart:async';
-import '../services/face_verification_service.dart';
+import 'face_verification_service.dart';
 
 class FaceScanner extends StatefulWidget {
   final Function(bool) onFaceDetected;

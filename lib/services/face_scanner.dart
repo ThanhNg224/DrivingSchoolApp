@@ -60,7 +60,7 @@ class _FaceScannerState extends State<FaceScanner> {
       setState(() {});
     } catch (e) {
       debugPrint("Error initializing camera: $e");
-      // Report face not detected since we can't verify
+      // Report face not detected cause we can't verify
       widget.onFaceDetected(false);
     }
   }

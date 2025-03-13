@@ -109,48 +109,57 @@ class VideoScreenState extends State<VideoScreen> {
   }
 
   // Combined face detection handler that updates both the video playback and the learner recorder.
-  void _handleFaceDetection(bool isDetected) {
-    // If video is over, ignore further face detection.
-    if (_controller.value.position >= _controller.value.duration) return;
-    
-    debugPrint("Face detection update: $isDetected");
+  // Better dialog management approach
+void _handleFaceDetection(bool isDetected) {
+  // If video is over, ignore further face detection
+  if (_controller.value.position >= _controller.value.duration) return;
+  
+  // Only update if state actually changed
+  if (_isFaceDetected != isDetected) {
     setState(() {
       _isFaceDetected = isDetected;
     });
     
-    // Forward face detection status to the LearnerRecorder.
+    // Forward face detection status to the LearnerRecorder
     _learnerRecorderKey.currentState?.updateFaceDetectionStatus(isDetected);
     
-    // Manage video playback based on face detection.
-    if (!_isFaceDetected) {
+    // Manage video playback based on face detection
+    if (!isDetected) {
       if (_controller.value.isPlaying) {
         _controller.pause();
         debugPrint("Video paused due to missing face");
       }
+      
+      // Only show warning if not already shown
       if (!_warningDialogActive) {
         _showWarningDialog();
       }
     } else {
-      if (_controller.value.isInitialized && !_controller.value.isPlaying) {
+      if (!_controller.value.isPlaying) {
         _controller.play();
         debugPrint("Video resumed as face is detected");
       }
-      if (_warningDialogActive) {
-        Future.delayed(const Duration(milliseconds: 200), () {
-          if (_warningDialogActive && _isFaceDetected) {
-            try {
-              if (mounted) {
-                Navigator.of(context, rootNavigator: true).pop();
-              }
-            } catch (e) {
-              debugPrint("Error dismissing dialog: $e");
-            }
-            _warningDialogActive = false;
-          }
-        });
+      
+      // Better dialog dismissal logic
+      if (_warningDialogActive && mounted) {
+        // Use a flag to prevent multiple dismissal attempts
+        final wasActive = _warningDialogActive;
+        _warningDialogActive = false;
+        
+        // Safely dismiss the dialog
+        try {
+          Navigator.of(context, rootNavigator: true).pop();
+        } catch (error) {
+          debugPrint("Dialog dismissal error (likely already dismissed): $error");
+        }
+        
+        if (wasActive) {
+          debugPrint("Warning dialog dismissed due to face detection");
+        }
       }
     }
   }
+}
 
   // Displays a warning dialog when no face is detected.
   void _showWarningDialog() {

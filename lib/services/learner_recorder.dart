@@ -79,26 +79,33 @@ Future<void> endSession() async {
 
   /// Starts a new chunk recording for 10 secs.
   Future<void> _startRecordingChunk() async {
-  if (_isRecording || _controller == null || !_controller!.value.isInitialized) return;
-  if (_lessonEnded) {
-    debugPrint("Not starting a new chunk because lessonEnded = true");
+  // Don't start if recording, controller issues, or lesson ended
+  if (_isRecording || 
+      _controller == null || 
+      !_controller!.value.isInitialized ||
+      _lessonEnded) {
+    debugPrint("Skipping chunk start due to state: recording=$_isRecording, controller=${_controller != null}, initialized=${_controller?.value.isInitialized}, ended=$_lessonEnded");
     return;
   }
 
   try {
     await _controller!.startVideoRecording();
-    _isRecording = true;
+    setState(() => _isRecording = true);  // Use setState for all state changes
     debugPrint("Started recording chunk $_chunkIndex");
 
     _chunkTimer = Timer(const Duration(seconds: 10), () async {
       await _stopRecordingChunk();
-      // Only start the next chunk if lesson not ended
-      if (_faceDetected && !_lessonEnded) {
+      // Check conditions again before starting next chunk
+      if (_faceDetected && !_lessonEnded && mounted) {
         _startRecordingChunk();
       }
     });
   } catch (e) {
     debugPrint("Error starting recording chunk: $e");
+    // Add recovery logic here - maybe retry after delay?
+    Future.delayed(Duration(seconds: 2), () {
+      if (!_lessonEnded && mounted) _startRecordingChunk();
+    });
   }
 }
 

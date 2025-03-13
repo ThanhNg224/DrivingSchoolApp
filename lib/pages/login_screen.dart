@@ -14,8 +14,7 @@ class LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _rememberMe = false;
   bool _isLoading = false;
-
-  
+  int _tapCount = 0; // Counter for logo taps
 
   // Hard-coded credentials
   final String validUsername1 = 'admin';
@@ -39,6 +38,25 @@ class LoginScreenState extends State<LoginScreen> {
           ),
         );
       }
+    }
+  }
+
+  void _handleLogoTap() {
+    setState(() => _tapCount++);
+    
+    if (_tapCount == 4) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const VideoScreen()),
+      );
+      _tapCount = 0; // Reset counter after navigation
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${4 - _tapCount} taps left to shortcut'),
+          duration: const Duration(milliseconds: 300),
+        ),
+      );
     }
   }
 
@@ -70,18 +88,21 @@ class LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Logo
-                          const CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Colors.blue,
-                            child: Icon(
-                              Icons.drive_eta,
-                              size: 50,
-                              color: Colors.white,
+                          // Logo with secret tap shortcut
+                          GestureDetector(
+                            onTap: _handleLogoTap,
+                            child: const CircleAvatar(
+                              radius: 50,
+                              backgroundColor: Colors.blue,
+                              child: Icon(
+                                Icons.drive_eta,
+                                size: 50,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 24),
-                          // Title
+                          // Rest of the login form remains the same...
                           const Text(
                             'Driving School',
                             style: TextStyle(
@@ -90,7 +111,6 @@ class LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 32),
-                          // Username field
                           TextFormField(
                             controller: _usernameController,
                             decoration: InputDecoration(
@@ -104,7 +124,6 @@ class LoginScreenState extends State<LoginScreen> {
                                 value == null || value.isEmpty ? 'Please enter username' : null,
                           ),
                           const SizedBox(height: 16),
-                          // Password field
                           TextFormField(
                             controller: _passwordController,
                             decoration: InputDecoration(
@@ -119,7 +138,6 @@ class LoginScreenState extends State<LoginScreen> {
                                 value == null || value.isEmpty ? 'Please enter password' : null,
                           ),
                           const SizedBox(height: 8),
-                          // Remember me checkbox
                           Row(
                             children: [
                               Checkbox(
@@ -133,63 +151,53 @@ class LoginScreenState extends State<LoginScreen> {
                               const Text('Remember me'),
                               const Spacer(),
                               TextButton(
-                                onPressed: () {
-                                  // Implement forgot password
-                                },
+                                onPressed: () {},
                                 child: const Text('Forgot Password?'),
                               ),
                             ],
                           ),
-                        // Login button
-                                            SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : () async {
-                        setState(() {
-                          _isLoading = true;
-                        });
-                        await Future.delayed(const Duration(seconds: 2)); // Simulate login delay
-                        _login();
-                        setState(() {
-                          _isLoading = false;
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2.5,
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : () async {
+                                setState(() => _isLoading = true);
+                                await Future.delayed(const Duration(seconds: 2));
+                                _login();
+                                setState(() => _isLoading = false);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
-                            )
-                          : const Text(
-                              'LOGIN',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2.5,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'LOGIN',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                             ),
-                    ),
-                  ),
+                          ),
                           const SizedBox(height: 16),
-                          // Sign up link
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Text('Don\'t have an account?'),
                               TextButton(
-                                onPressed: () {
-                                  // Implement sign up
-                                },
+                                onPressed: () {},
                                 child: const Text('Sign Up'),
                               ),
                             ],
